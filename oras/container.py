@@ -34,6 +34,15 @@ class Container:
         # Registry is the name takes precendence
         self.parse(name)
 
+    @property
+    def api_prefix(self):
+        """
+        Return the repository prefix for the v2 API endpoints.
+        """
+        if self.namespace:
+            return f"{self.namespace}/{self.repository}"
+        return self.repository
+
     def get_blob_url(self, digest: str) -> str:
         """
         Get the URL to download a blob
@@ -41,19 +50,19 @@ class Container:
         :param digest: the digest to download
         :type digest: str
         """
-        return f"{self.registry}/v2/{self.namespace}/{self.repository}/blobs/{digest}"
+        return f"{self.registry}/v2/{self.api_prefix}/blobs/{digest}"
 
     def upload_blob_url(self) -> str:
-        return f"{self.registry}/v2/{self.namespace}/{self.repository}/blobs/uploads/"
+        return f"{self.registry}/v2/{self.api_prefix}/blobs/uploads/"
 
     def tags_url(self, N=10_000) -> str:
-        return f"{self.registry}/v2/{self.namespace}/{self.repository}/tags/list?n={N}"
+        return f"{self.registry}/v2/{self.api_prefix}/tags/list?n={N}"
 
     def put_manifest_url(self) -> str:
-        return f"{self.registry}/v2/{self.namespace}/{self.repository}/manifests/{self.tag}"
+        return f"{self.registry}/v2/{self.api_prefix}/manifests/{self.tag}"
 
     def get_manifest_url(self) -> str:
-        return f"{self.registry}/v2/{self.namespace}/{self.repository}/manifests/{self.tag}"
+        return f"{self.registry}/v2/{self.api_prefix}/manifests/{self.tag}"
 
     def __str__(self) -> str:
         return self.uri
@@ -63,7 +72,10 @@ class Container:
         """
         Assemble the complete unique resource identifier
         """
-        uri = f"{self.namespace}/{self.repository}"
+        if self.namespace:
+            uri = f"{self.namespace}/{self.repository}"
+        else:
+            uri = f"{self.repository}"
         if self.registry:
             uri = f"{self.registry}/{uri}"
 
@@ -93,9 +105,8 @@ class Container:
         self.tag = items["tag"] or oras.defaults.default_tag
         self.digest = items["digest"]
 
-        # Repository and namespace are required
-        if not self.repository or not self.namespace:
-            logger.exit(
-                "You are minimally required to include a <namespace>/<repository>"
-            )
-        self.namespace = self.namespace.strip("/")
+        # Repository is required
+        if not self.repository:
+            logger.exit("You are minimally required to include a <repository>")
+        if self.namespace:
+            self.namespace = self.namespace.strip("/")
